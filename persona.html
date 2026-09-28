@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Persona 5 Stats Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,700;1,900&display=swap');
+        
+        body {
+            background-color: #111;
+            background-image: radial-gradient(#333 1px, transparent 1px);
+            background-size: 20px 20px;
+            color: #fff;
+            font-family: 'Montserrat', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px 10px;
+            margin: 0;
+        }
+        h2 {
+            font-size: 2.5em;
+            color: #e60012;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px #fff;
+            transform: skew(-5deg);
+            margin-bottom: 30px;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 50px;
+            max-width: 1000px;
+        }
+        .chart-container {
+            width: 450px;
+            height: 450px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 50%;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(230, 0, 18, 0.4);
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .stat-row {
+            background: #e60012;
+            padding: 12px 20px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 380px;
+            transform: skew(-5deg);
+            box-shadow: 4px 4px 0px #fff;
+            border: 2px solid #000;
+        }
+        .stat-info {
+            transform: skew(5deg);
+            display: flex;
+            flex-direction: column;
+        }
+        .stat-name {
+            font-weight: 900;
+            font-size: 1.2em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #fff;
+        }
+        .stat-rank {
+            font-size: 0.9em;
+            color: #ffdada;
+            font-weight: 700;
+            margin-top: 2px;
+        }
+        .buttons {
+            display: flex;
+            gap: 8px;
+            transform: skew(5deg);
+        }
+        button {
+            background: #fff;
+            color: #e60012;
+            border: 2px solid #000;
+            padding: 6px 12px;
+            font-weight: 900;
+            cursor: pointer;
+            border-radius: 2px;
+            font-size: 1em;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: #000;
+            color: #fff;
+            transform: scale(1.1);
+        }
+        .reset-btn {
+            margin-top: 40px;
+            background: #000;
+            color: #fff;
+            padding: 12px 25px;
+            border: 2px solid #e60012;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transform: skew(-5deg);
+        }
+        .reset-btn:hover {
+            background: #e60012;
+            border-color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>SOCIAL STATS</h2>
+    
+    <div class="container">
+        <div class="chart-container">
+            <canvas id="radarChart"></canvas>
+        </div>
+
+        <div class="controls" id="controlsPanel">
+            <!-- Botones generados por JS -->
+        </div>
+    </div>
+    
+    <button class="reset-btn" onclick="resetStats()">Resetear Progreso</button>
+
+    <script>
+        // Datos de Stats con sus títulos oficiales en español
+        const statData = {
+            Knowledge: { name: "Conocimiento", titles: ["Ignorante", "Instruido", "Erudito", "Enciclopédico", "Sabio"] },
+            Guts: { name: "Coraje", titles: ["Cobarde", "Audaz", "Valiente", "Intrépido", "Temerario"] },
+            Proficiency: { name: "Destreza", titles: ["Torpe", "Decente", "Hábil", "Maestro", "Trascendente"] },
+            Kindness: { name: "Gentileza", titles: ["Inofensivo", "Considerado", "Empático", "Desinteresado", "Angelical"] },
+            Charm: { name: "Encanto", titles: ["Inadvertido", "Llamativo", "Elegante", "Carismático", "Cautivador"] }
+        };
+        const statKeys = Object.keys(statData);
+        const maxPoints = 115;
+
+        // Cargar datos
+        let stats = JSON.parse(localStorage.getItem("p5stats_v2")) || {
+            Knowledge: 0, Guts: 0, Proficiency: 0, Kindness: 0, Charm: 0
+        };
+
+        function getRankInfo(statKey, points) {
+            let rankIdx = 0;
+            if (points >= 115) rankIdx = 4;
+            else if (points >= 65) rankIdx = 3;
+            else if (points >= 30) rankIdx = 2;
+            else if (points >= 10) rankIdx = 1;
+            
+            return `Rank ${rankIdx + 1}: ${statData[statKey].titles[rankIdx]} (${points}/${maxPoints})`;
+        }
+
+        function saveData() {
+            localStorage.setItem("p5stats_v2", JSON.stringify(stats));
+        }
+
+        // Configuración Gráfico
+        const ctx = document.getElementById('radarChart').getContext('2d');
+        const radarChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: statKeys.map(k => statData[k].name),
+                datasets: [{
+                    data: statKeys.map(k => stats[k]),
+                    backgroundColor: 'rgba(230, 0, 18, 0.65)',
+                    borderColor: '#ff3333',
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#e60012',
+                    pointHoverBackgroundColor: '#000',
+                    pointHoverBorderColor: '#fff',
+                    borderWidth: 3,
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                scales: {
+                    r: {
+                        min: 0,       // ESTO ARREGLA EL PROBLEMA DEL ZOOM
+                        max: 115,     // ESTO FIJA EL LÍMITE EXTERIOR
+                        angleLines: { color: 'rgba(255, 255, 255, 0.4)', lineWidth: 2 },
+                        grid: { color: 'rgba(255, 255, 255, 0.2)', circular: true },
+                        pointLabels: { 
+                            color: '#fff', 
+                            font: { size: 16, weight: '900', family: 'Montserrat' },
+                            padding: 15
+                        },
+                        ticks: { display: false } // Oculta los numeritos del medio
+                    }
+                },
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                animation: { duration: 800, easing: 'easeOutBounce' }
+            }
+        });
+
+        function updateUI() {
+            radarChart.data.datasets[0].data = statKeys.map(k => stats[k]);
+            radarChart.update();
+
+            const panel = document.getElementById('controlsPanel');
+            panel.innerHTML = '';
+            
+            statKeys.forEach(key => {
+                const row = document.createElement('div');
+                row.className = 'stat-row';
+                row.innerHTML = `
+                    <div class="stat-info">
+                        <div class="stat-name">${statData[key].name}</div>
+                        <div class="stat-rank">${getRankInfo(key, stats[key])}</div>
+                    </div>
+                    <div class="buttons">
+                        <button onclick="addPoints('${key}', 1)">+1</button>
+                        <button onclick="addPoints('${key}', 2)">+2</button>
+                        <button onclick="addPoints('${key}', 3)">+3</button>
+                    </div>
+                `;
+                panel.appendChild(row);
+            });
+        }
+
+        function addPoints(stat, amount) {
+            stats[stat] += amount;
+            if (stats[stat] > maxPoints) stats[stat] = maxPoints;
+            saveData();
+            updateUI();
+        }
+
+        function resetStats() {
+            if(confirm("¿Seguro que quieres borrar todo tu progreso? Volverás a ser un ignorante y cobarde.")) {
+                stats = { Knowledge: 0, Guts: 0, Proficiency: 0, Kindness: 0, Charm: 0 };
+                saveData();
+                updateUI();
+            }
+        }
+
+        updateUI();
+    </script>
+</body>
+</html>
